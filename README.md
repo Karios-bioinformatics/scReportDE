@@ -7,6 +7,7 @@
  <img src="https://img.shields.io/badge/Status-Early%20Alpha-orange" alt="Status">
  <img src="https://img.shields.io/badge/Layer-scReport%20Module-lightgrey" alt="Layer">
  <img src="https://img.shields.io/badge/Focus-Differential%20Expression-purple" alt="Focus"> 
+ <a href="https://doi.org/10.5281/zenodo.21032255"><img src="https://zenodo.org/badge/1280165139.svg" alt="DOI"></a>
  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
 </p>
 
