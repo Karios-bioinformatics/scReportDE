@@ -1,285 +1,131 @@
-# scReportDE
+# scReportDE v0.1.0
 
-<p align="center"> <strong>A differential expression reporting module for the scReport ecosystem.</strong> </p>
+**Differential Expression HTML Report Generator** — part of the scReport ecosystem.
 
-<p align="center">
- <img src="https://img.shields.io/badge/Version-v0.0.0--alpha-blue" alt="Version">
- <img src="https://img.shields.io/badge/Status-Early%20Alpha-orange" alt="Status">
- <img src="https://img.shields.io/badge/Layer-scReport%20Module-lightgrey" alt="Layer">
- <img src="https://img.shields.io/badge/Focus-Differential%20Expression-purple" alt="Focus"> 
- <a href="https://doi.org/10.5281/zenodo.21032255"><img src="https://zenodo.org/badge/1280165139.svg" alt="DOI"></a>
- <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-</p>
+Takes a Seurat object (runs FindMarkers/FindAllMarkers internally) or a pre-computed DE data.frame, and produces an interactive HTML report with volcano plot, DT table, dot plot, and violin plot.
 
-## Overview
+## Installation
 
-**scReportDE** is a planned differential expression reporting module in the **scReport** ecosystem.
+```r
+# From source
+install.packages("path/to/scReportDE", repos = NULL, type = "source")
 
-It is designed to organize, visualize, and communicate differential expression results from single-cell bioinformatics workflows.
-
-The core idea is:
-
-> Convert pre-computed differential expression results into structured, interactive, and shareable HTML reports.
-
-`scReportDE` does not aim to replace upstream differential expression tools. Instead, it focuses on the reporting layer after differential expression analysis has already been performed.
-
-## Current status
-
-The current release is an early alpha project definition.
-
-`v0.0.0-alpha` establishes the repository, project scope, README, and development roadmap. It does not yet provide a functional R package implementation.
-
-The first functional release is planned as `v0.1.0`.
-
-## Position in the scReport ecosystem
-
-`scReportDE` is one module of the broader `scReport` ecosystem.
-
-In the scReport design:
-
-- `scReportLite` focuses on cell-level views such as QC, Feature, PCA, UMAP, marker linkage, and selected gene expression.
-- `scReportComposition` focuses on sample-level and group-level cell composition.
-- `scReportDE` will focus on differential expression result reporting.
-- Future modules may cover enrichment analysis, trajectory analysis, cell communication, regulatory networks, spatial omics, and multi-omics reporting.
-
-`scReportDE` is intended to answer questions such as:
-
-- Which genes are differentially expressed between groups?
-- Which genes are upregulated or downregulated in a cluster or cell type?
-- Which comparisons show the strongest transcriptional changes?
-- Which differential expression results should be linked to UMAP, composition, and enrichment reports?
-- How can DE tables, volcano plots, MA plots, and gene-level summaries be organized into a single report?
-
-## Core concept
-
-The central object of `scReportDE` is the differential expression result table.
-
-A typical DE table may contain:
-
-|comparison|cluster|gene|avg_log2FC|p_val|p_val_adj|pct.1|pct.2|
-|---|---|---|---|---|---|---|---|
-|Disease_vs_Control|Macrophage|IL1B|1.82|1e-10|2e-8|0.71|0.24|
-|Disease_vs_Control|T cell|GZMB|1.15|3e-6|1e-4|0.42|0.18|
-|Disease_vs_Control|Epithelial|KRT8|-0.93|2e-5|6e-4|0.21|0.55|
-
-The exact required columns may vary depending on the upstream tool, but `gene`, effect size, adjusted p-value, and comparison labels are expected to be central fields.
-
-## Planned v0.1.0 scope
-
-The first functional version of `scReportDE` will focus on **pre-computed differential expression result reporting**.
-
-Planned features for `v0.1.0`:
-
-- Accept pre-computed DE result tables.
-- Summarize DE results by comparison, cluster, or cell type.
-- Generate a single-page HTML DE report.
-- Provide interactive DE result tables.
-- Provide volcano plots.
-- Provide MA plots.
-- Provide top upregulated and downregulated gene summaries.
-- Provide comparison-level summary cards.
-- Support common Seurat-style marker / DE result columns.
-
-## Out of scope for v0.1.0
-
-The following features are intentionally not included in the first functional version:
-
-- Running differential expression tests internally.
-- Replacing Seurat, Scanpy, MAST, edgeR, DESeq2, limma, or other upstream tools.
-- Pseudobulk modeling.
-- Multi-factor statistical design.
-- Pathway enrichment analysis.
-- Gene set enrichment analysis.
-- Cell-cell communication analysis.
-- Trajectory-specific DE analysis.
-- Cross-module cell locking.
-
-These features may be supported by future scReport modules or later versions.
-
-## Input data
-
-`scReportDE` is designed to work with differential expression result tables such as:
-
-|   |   |   |   |   |   |   |
-|---|---|---|---|---|---|---|
-|comparison|group_1|group_2|cluster|gene|avg_log2FC|p_val_adj|
-|Disease_vs_Control|Disease|Control|Macrophage|IL1B|1.82|2e-8|
-|Disease_vs_Control|Disease|Control|Macrophage|CXCL8|1.44|5e-6|
-|Disease_vs_Control|Disease|Control|T cell|GZMB|1.15|1e-4|
-
-Minimum expected columns:
-
-- `gene`
-- effect size column, such as `avg_log2FC`, `log2FC`, or `logFC`
-- adjusted p-value column, such as `p_val_adj`, `padj`, or `FDR`
-
-Recommended columns:
-
-- `comparison`
-- `cluster`
-- `cell_type`
-- `group_1`
-- `group_2`
-- `pct.1`
-- `pct.2`
-- `p_val`
-
-## Planned usage
-
-The planned core workflow is:
-
+# Or source directly (for development)
+pkg_root <- "path/to/scReportDE"
+for (f in list.files(file.path(pkg_root, "R"), full.names = TRUE)) source(f)
 ```
+
+Requires: `Seurat`, `plotly`, `htmltools`, `jsonlite`, `DT`.
+
+## Quick Start
+
+```r
 library(scReportDE)
+library(Seurat)
 
-build_de_report(
-  de_df = de_df,
-  gene_col = "gene",
-  logfc_col = "avg_log2FC",
-  padj_col = "p_val_adj",
-  comparison_col = "comparison",
-  cluster_col = "cluster",
-  output = "scReportDE.html"
+# Option 1: Pairwise DE from Seurat object
+obj <- readRDS("my_seurat.rds")
+build_screport_de(
+  seurat_obj  = obj,
+  group_col   = "condition",
+  ident_1     = "Treatment",
+  ident_2     = "Control",
+  mode        = "pairwise",
+  output_file = "DE_Treatment_vs_Control.html"
+)
+
+# Option 2: Pre-computed DE data.frame
+de_results <- FindMarkers(obj, ident.1 = "A", ident.2 = "B")
+build_screport_de(de_df = de_results)
+
+# Option 3: AllMarkers mode
+build_screport_de(
+  seurat_obj  = obj,
+  mode        = "all_markers",
+  output_file = "DE_AllMarkers.html"
 )
 ```
 
-Or with a Seurat-style marker table:
+## Report Sections
+
+| Section | Content |
+|---------|---------|
+| Overview | Summary cards: n DEGs, up/down/sig counts, comparison, method |
+| Volcano Plot | Interactive plotly: logFC vs -log10(p), significant gene highlights |
+| DE Table | Searchable, sortable, paginated DT table with full results |
+| Dot Plot | Top N genes expression dot plot (requires Seurat object) |
+| Violin Plot | Top gene expression distribution across groups (requires Seurat object) |
+| Method Info | All parameters and generation metadata |
+
+## Function Reference
+
+### `build_screport_de()`
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `seurat_obj` | `NULL` | Seurat object (required if no de_df) |
+| `de_df` | `NULL` | Pre-computed DE data.frame |
+| `group_col` | `NULL` | Metadata column for identity |
+| `ident_1` | `NULL` | Identity 1 (pairwise) |
+| `ident_2` | `NULL` | Identity 2 (pairwise) |
+| `mode` | `"pairwise"` | `"pairwise"` or `"all_markers"` |
+| `assay` | `NULL` | Assay name |
+| `slot` | `"data"` | Expression slot |
+| `test_use` | `"wilcox"` | Statistical test |
+| `logfc_threshold` | `0.25` | LogFC threshold |
+| `min_pct` | `0.1` | Minimum detection fraction |
+| `only_pos` | `FALSE` | Only positive markers |
+| `top_n` | `20` | Top genes for labels/dot plot |
+| `output_file` | `"scReport_DE.html"` | Output HTML path |
+| `title` | `"Differential Expression Report"` | Report title |
+| `self_contained` | `FALSE` | Reserved for future use |
+
+### Return value
+
+A list with `de_df`, `output_file`, `metadata`, and `warnings`.
+
+## File Structure
 
 ```
-build_de_report(
-  de_df = marker_df,
-  gene_col = "gene",
-  logfc_col = "avg_log2FC",
-  padj_col = "p_val_adj",
-  cluster_col = "cluster",
-  output = "scReportDE_marker_report.html"
-)
+scReportDE/
+├── DESCRIPTION
+├── NAMESPACE
+├── LICENSE
+├── README.md
+├── R/
+│   ├── utils.R              # %||%, fmt_num(), fmt_pval(), normalize_de_df(), safe_compute_de()
+│   ├── de_compute.R         # compute_de(), build_method_meta()
+│   ├── de_plots.R           # plot_volcano(), plot_dotplot(), plot_violin()
+│   ├── de_html.R            # CSS, JS, card builders, section builders, build_html()
+│   └── build_screport_de.R  # Main API: build_screport_de()
+└── inst/
+    └── test_de_basic.R      # Full smoke test (7 test cases)
 ```
 
-## Example report panels
+## Testing
 
-A typical `scReportDE` report may include:
-
-1. Overview summary cards
-2. Comparison selector
-3. Cluster / cell type selector
-4. Volcano plot
-5. MA plot
-6. Top upregulated genes
-7. Top downregulated genes
-8. Interactive DE result table
-9. Optional gene-level detail panel
-10. Optional export-ready summary table
-
-## Design principles
-
-`scReportDE` follows the general design principles of the scReport ecosystem:
-
-- Reporting after analysis, not replacing analysis.
-- Use pre-computed upstream results.
-- Keep statistical modeling separate from report generation.
-- Provide clear interactive visualization and result organization.
-- Preserve compatibility with future scReport modules.
-- Maintain stable identifiers for genes, clusters, cell types, samples, and comparisons.
-
-## Relationship to other scReport modules
-
-`scReportDE` is designed to connect naturally with other modules in the scReport ecosystem.
-
-```
-scReportLite
-  → Where are the cells?
-  → What clusters or cell types are being inspected?
-
-scReportComposition
-  → Which cell types change in proportion across samples or groups?
-
-scReportDE
-  → Which genes change within a cluster, cell type, or comparison?
-
-scReportEnrichment
-  → What biological functions are associated with the changed genes?
+```bash
+cd path/to/scReportDE
+Rscript inst/test_de_basic.R
 ```
 
-In the future, DE results may be linked back to cell-level and group-level context through shared fields such as:
+7 test cases:
+1. Pairwise DE from Seurat
+2. Pre-computed de_df only (no Seurat object)
+3. Missing optional columns (pct.1/pct.2)
+4. Empty DE results (0 genes)
+5. AllMarkers mode
+6. group_col parameter
+7. normalize_de_df edge cases (4 sub-tests)
 
-- `cell_id`
-- `cluster`
-- `cell_type`
-- `sample`
-- `group`
-- `comparison`
-- `gene`
+## Design Notes
 
-## Cell-centric design direction
+- **No crash policy**: Every plot is wrapped in tryCatch. If a plot fails, the report still renders with a placeholder.
+- **de_df priority**: If both `seurat_obj` and `de_df` are provided, `de_df` takes precedence.
+- **Column auto-detection**: Supports `avg_log2FC`, `avg_logFC`, and `log2FoldChange`; detects gene from column or rownames.
+- **Visual style**: Matches scReportLite/scReportComposition (white bg, green accent #00b894, left sidebar, cards).
+- **Sharing**: Not self-contained by default. Console message reminds to share the `lib` folder too. `self_contained = TRUE` reserved for future.
 
-The long-term scReport ecosystem is intended to support **cell-centric global tracking** across modules.
+## Version History
 
-A guiding principle is:
-
-> A cell should not lose its identity when the user moves across analysis modules.
-
-For `scReportDE`, this means that DE results should be traceable back to the relevant cluster, cell type, group comparison, marker table, UMAP context, and downstream enrichment interpretation.
-
-## Roadmap
-
-### v0.0.0-alpha
-
-Repository initialization, project definition, README, and roadmap.
-
-### v0.1.0
-
-Pre-computed DE result reporting.
-
-Potential additions:
-
-- Interactive DE table.
-- Volcano plot.
-- MA plot.
-- Top upregulated / downregulated gene summaries.
-- Basic comparison and cluster selectors.
-
-### v0.2.0
-
-Improved DE report structure.
-
-Potential additions:
-
-- Multi-comparison support.
-- Cluster / cell type faceting.
-- Gene search and detail panels.
-- Export-ready filtered result tables.
-
-### v0.3.0
-
-Integration with enrichment reporting.
-
-Potential additions:
-
-- Passing selected DE gene sets to `scReportEnrichment`.
-- Upregulated and downregulated gene set export.
-- Linked DE-to-enrichment report flow.
-
-### Future
-
-Integration with the main `scReport` ecosystem.
-
-Potential directions:
-
-- Cross-module linking with UMAP, composition, and enrichment modules.
-- Cell-centric global tracking.
-- Pseudobulk DE result display.
-- More flexible support for upstream DE tools.
-
-## Citation
-
-A Zenodo DOI will be added after the first archived release.
-
-Current DOI:
-
-```
-To be added after release.
-```
-
-## License
-
-This project is released under the MIT License.
+- **v0.1.0** (2026-06-30): Initial release — pairwise & all_markers DE, volcano plot, DT table, dot plot, violin plot, Method Info.

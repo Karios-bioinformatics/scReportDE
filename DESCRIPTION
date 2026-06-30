@@ -1,0 +1,25 @@
+Package: scReportDE
+Type: Package
+Title: Single-Cell Differential Expression Interactive HTML Report
+Version: 0.1.0
+Authors@R: person(given = "Kee-gong Karios",
+                  family = "Park",
+                  email = "karioslion0517@gmail.com",
+                  role = c("aut", "cre"))
+Description: Generate self-contained interactive HTML reports from single-cell
+    RNA-seq differential expression results. Accepts Seurat objects and runs
+    FindMarkers/FindAllMarkers internally, or consumes pre-computed DE data.frames.
+    Produces a styled report with volcano plots, interactive DE tables, dot plots,
+    and violin plots. Part of the scReport ecosystem alongside scReportLite and
+    scReportComposition.
+License: MIT
+Encoding: UTF-8
+Imports:
+    plotly,
+    htmltools,
+    jsonlite,
+    DT
+Suggests:
+    Seurat,
+    SeuratObject
+RoxygenNote: 7.3.0
