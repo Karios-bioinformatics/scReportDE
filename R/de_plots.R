@@ -199,11 +199,11 @@ plot_dotplot <- function(seurat_obj, de_df, top_n = 20, n_genes = 15,
 
     # Compute expression matrix for top genes
     expr_mat <- tryCatch({
-      Seurat::GetAssayData(seurat_obj, slot = "data")[top_genes, , drop = FALSE]
+      get_expr_data(seurat_obj, "data")[top_genes, , drop = FALSE]
     }, error = function(e) {
       message("Cannot extract expression; trying counts slot...")
       tryCatch({
-        Seurat::GetAssayData(seurat_obj, slot = "counts")[top_genes, , drop = FALSE]
+        get_expr_data(seurat_obj, "counts")[top_genes, , drop = FALSE]
       }, error = function(e2) NULL)
     })
 
@@ -331,10 +331,10 @@ plot_violin <- function(seurat_obj, de_df, gene = NULL, group_col = NULL) {
 
     # Extract expression
     expr_vec <- tryCatch({
-      as.numeric(Seurat::GetAssayData(seurat_obj, slot = "data")[gene, ])
+      as.numeric(get_expr_data(seurat_obj, "data")[gene, ])
     }, error = function(e) {
       tryCatch({
-        as.numeric(Seurat::GetAssayData(seurat_obj, slot = "counts")[gene, ])
+        as.numeric(get_expr_data(seurat_obj, "counts")[gene, ])
       }, error = function(e2) NULL)
     })
 

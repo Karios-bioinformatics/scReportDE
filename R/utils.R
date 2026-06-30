@@ -27,13 +27,18 @@ fmt_num <- function(x, digits = 0) {
 #' Format a p-value for display
 #'
 #' Scientific notation for values < 1e-4, otherwise 4 decimal places.
-#' @param x Numeric p-value
-#' @return Character string
+#' @param x Numeric p-value (scalar or vector)
+#' @return Character vector of formatted p-values
 #' @keywords internal
 fmt_pval <- function(x) {
-  if (is.na(x)) return("NA")
-  if (x < 1e-4) return(format(x, digits = 2, scientific = TRUE))
-  sprintf("%.4f", x)
+  if (length(x) == 0) return(character(0))
+  result <- character(length(x))
+  na_idx     <- is.na(x)
+  tiny_idx   <- !na_idx & x < 1e-4 & !is.nan(x)
+  result[na_idx]     <- "NA"
+  result[tiny_idx]   <- format(x[tiny_idx], digits = 2, scientific = TRUE)
+  result[!(na_idx | tiny_idx)] <- sprintf("%.4f", x[!(na_idx | tiny_idx)])
+  result
 }
 
 
@@ -180,4 +185,26 @@ safe_compute_de <- function(seurat_obj, mode, ident_1, ident_2,
   # Normalise column names
   norm <- normalize_de_df(result)
   list(de_df = norm$df, warnings = c(warns, norm$warnings))
+}
+
+
+#' Extract expression matrix (Seurat v3/v4/v5 compatible)
+#'
+#' Tries \code{GetAssayData(slot=)} first (Seurat v3/v4).
+#' If that fails, falls back to \code{GetAssayData(layer=)} (Seurat v5).
+#'
+#' @param seurat_obj A Seurat object
+#' @param slot_name Expression slot/layer name (e.g. \code{"data"}, \code{"counts"})
+#' @return A matrix or dgCMatrix
+#' @keywords internal
+get_expr_data <- function(seurat_obj, slot_name = "data") {
+  tryCatch({
+    Seurat::GetAssayData(seurat_obj, slot = slot_name)
+  }, error = function(e1) {
+    tryCatch({
+      Seurat::GetAssayData(seurat_obj, layer = slot_name)
+    }, error = function(e2) {
+      stop("Cannot extract expression data: ", e1$message, " | ", e2$message)
+    })
+  })
 }
