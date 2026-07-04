@@ -1,0 +1,130 @@
+/* scReportDE — DotPlot Panel Controls
+ * =====================================
+ * Minimal styling for the interactive DotPlot control bar
+ * and embeddable plot area.
+ */
+
+.dp-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 0;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.dp-section .de-section-title {
+  padding: 14px 16px 10px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--sr-border, #dfe6e9);
+}
+
+/* ── Controls Bar ─────────────────────── */
+#dotplot-controls {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sr-border, #dfe6e9);
+  background: #fafbfc;
+}
+
+.dp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.dp-row:last-child {
+  margin-bottom: 0;
+}
+
+.dp-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.dp-control label {
+  font-size: 0.68em;
+  font-weight: 700;
+  color: #636e72;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.dp-control select,
+.dp-control input[type="number"],
+.dp-control input[type="text"] {
+  padding: 4px 8px;
+  border: 1px solid var(--sr-border, #dfe6e9);
+  border-radius: 4px;
+  font-size: 0.8em;
+  color: #2d3436;
+  background: #fff;
+  font-family: inherit;
+}
+
+.dp-control select:focus,
+.dp-control input:focus {
+  outline: none;
+  border-color: var(--sr-accent, #00b894);
+  box-shadow: 0 0 0 2px var(--sr-accent-soft, rgba(0,184,148,0.12));
+}
+
+.dp-control input[type="range"] {
+  width: 100px;
+}
+
+.dp-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72em;
+  color: #636e72;
+  padding: 2px 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dp-checkbox input {
+  margin: 0;
+}
+
+#dp-group-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+#dp-gene-pool-hint {
+  font-weight: 400;
+  font-size: 0.75em;
+  color: #95a5a6;
+  text-transform: none;
+}
+
+/* ── Messages ─────────────────────────── */
+.dp-message {
+  font-size: 0.75em;
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  display: none;
+}
+
+/* ── Plot Area ────────────────────────── */
+#dotplot-plot {
+  min-height: 350px;
+  width: 100%;
+}
+
+#dotplot-plot .js-plotly-plot,
+#dotplot-plot .plotly,
+#dotplot-plot .plot-container {
+  width: 100% !important;
+}

@@ -511,12 +511,16 @@ build_html <- function(de_df, overview_cards, volcano_widget,
     de_table_widget
   )
 
-  # Dot Plot
-  sections$dotplot <- de_section(
-    "dotplot", "Dot Plot",
-    if (!is.null(dotplot_widget)) plot_block("Top DE Genes", dotplot_widget)
-    else no_data_block("Dot plot requires a Seurat object for expression data.")
-  )
+  # Dot Plot — interactive panel or static fallback
+  if (!is.null(dotplot_widget)) {
+    # dotplot_widget is an interactive panel (htmltools tag from .build_interactive_marker_dotplot_panel)
+    sections$dotplot <- dotplot_widget
+  } else {
+    sections$dotplot <- de_section(
+      "dotplot", "Dot Plot",
+      no_data_block("Dot plot requires a Seurat object and marker data for expression visualisation.")
+    )
+  }
 
   # Violin Plot
   sections$violin <- de_section(

@@ -41,6 +41,24 @@
 #' @param only_pos Return only positive markers. Default: FALSE.
 #' @param top_n Number of top genes labelled in volcano / used in dot plot.
 #'   Default: 20.
+#' @param dotplot_identity_layers Character vector of meta.data columns to use
+#'   as x-axis grouping variables for the interactive DotPlot. When NULL, defaults
+#'   are auto-detected (see \code{.collect_dotplot_identity_layers}).
+#' @param dotplot_marker_pool_top_n Integer. Top N marker genes per identity value
+#'   to include in the precomputed gene pool. Default: 50.
+#' @param dotplot_pool_max_genes Integer. Maximum number of genes in the
+#'   precomputed pool. Default: 500.
+#' @param dotplot_top_n Integer. Default number of top markers shown per group.
+#'   Default: 10.
+#' @param dotplot_max_display_genes Integer. Maximum genes shown on the plot.
+#'   Default: 80.
+#' @param dotplot_direction Character. Default marker direction filter:
+#'   \code{"up"}, \code{"down"}, or \code{"both"}. Default: \code{"up"}.
+#' @param dotplot_extra_genes Character vector of extra genes to force into the
+#'   precomputed gene pool. Default: \code{NULL}.
+#' @param dotplot_size_min Numeric. Minimum bubble diameter (Plotly units).
+#'   Default: 3.
+#' @param dotplot_size_max Numeric. Maximum bubble diameter. Default: 14.
 #' @param output_file Path to the output HTML file.
 #'   Default: \code{"scReport_DE.html"}.
 #' @param title Report title shown in the header.
@@ -91,6 +109,15 @@ build_screport_de <- function(
     min_pct         = 0.1,
     only_pos        = FALSE,
     top_n           = 20,
+    dotplot_identity_layers     = NULL,
+    dotplot_marker_pool_top_n   = 50,
+    dotplot_pool_max_genes      = 500,
+    dotplot_top_n               = 10,
+    dotplot_max_display_genes   = 80,
+    dotplot_direction           = "up",
+    dotplot_extra_genes         = NULL,
+    dotplot_size_min            = 3,
+    dotplot_size_max            = 14,
     output_file     = "scReport_DE.html",
     title           = "Differential Expression Report",
     self_contained  = FALSE) {
@@ -161,11 +188,22 @@ build_screport_de <- function(
     NULL
   })
 
-  # Dot plot
-  message("  - Dot plot...")
+  # Dot plot — interactive panel
+  message("  - Dot plot (interactive)...")
   dotplot_widget <- tryCatch({
-    plot_dotplot(seurat_obj, de_df_norm, top_n = top_n,
-                 group_col = group_col)
+    .build_interactive_marker_dotplot_panel(
+      seurat_obj       = seurat_obj,
+      marker_df        = de_df_norm,
+      identity_layers  = dotplot_identity_layers,
+      marker_pool_top_n = dotplot_marker_pool_top_n,
+      pool_max_genes   = dotplot_pool_max_genes,
+      top_n            = dotplot_top_n,
+      max_display_genes = dotplot_max_display_genes,
+      direction        = dotplot_direction,
+      extra_genes      = dotplot_extra_genes,
+      size_min         = dotplot_size_min,
+      size_max         = dotplot_size_max
+    )
   }, error = function(e) {
     all_warnings <<- c(all_warnings, paste("Dot plot:", e$message))
     NULL
