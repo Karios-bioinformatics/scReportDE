@@ -95,11 +95,22 @@ normalize_de_df <- function(df) {
   }
 
   # ---- Check required columns ----
-  required <- c("p_val", "p_val_adj")
-  for (col in required) {
-    if (!col %in% colnames(df)) {
-      warns <- c(warns, paste0("Missing column: '", col, "'"))
-    }
+  has_p_val     <- "p_val"     %in% colnames(df)
+  has_p_val_adj <- "p_val_adj" %in% colnames(df)
+
+  if (!has_p_val && !has_p_val_adj) {
+    stop("DE table must contain at least one of 'p_val' or 'p_val_adj'")
+  }
+
+  if (!has_p_val && has_p_val_adj) {
+    df[["p_val"]] <- df[["p_val_adj"]]
+    warns <- c(warns, "Column 'p_val' missing — using 'p_val_adj' as fallback")
+  } else if (!has_p_val) {
+    warns <- c(warns, "Missing column: 'p_val'")
+  }
+
+  if (!has_p_val_adj) {
+    warns <- c(warns, "Missing column: 'p_val_adj'")
   }
 
   # ---- Fill optional columns with NA ----

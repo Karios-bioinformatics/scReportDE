@@ -70,10 +70,13 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
                 "Not sig" = "#b2bec3")
 
     # Hover text
+    p_val_line <- if ("p_val" %in% colnames(df)) {
+      paste0("p_val: ", fmt_pval(df$p_val), "<br>")
+    } else ""
     hover <- paste0(
       "<b>", df$gene, "</b><br>",
       "log2FC: ", sprintf("%.4f", df$avg_log2FC), "<br>",
-      "p_val: ", fmt_pval(df$p_val), "<br>"
+      p_val_line
     )
     if ("p_val_adj" %in% colnames(df)) {
       hover <- paste0(hover, "p_adj: ", fmt_pval(df$p_val_adj), "<br>")

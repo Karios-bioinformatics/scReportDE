@@ -101,6 +101,11 @@ for (kw in c("section-overview", "section-volcano", "section-de_table",
   cat(sprintf("  %-25s %s\n", kw, if (found) "OK" else "MISSING!"))
 }
 
+# Assert DotPlot JS is inlined (key function name present)
+dotplot_js_ok <- any(grepl("initDotPlot", lines1, fixed = TRUE))
+cat(sprintf("  %-25s %s\n", "DotPlot JS (initDotPlot)", if (dotplot_js_ok) "OK" else "MISSING!"))
+stopifnot(dotplot_js_ok)
+
 message("PASS: Pairwise DE report generated")
 
 # ============================================================================
@@ -251,9 +256,38 @@ stopifnot("avg_log2FC" %in% colnames(norm_l2$df))
 stopifnot(norm_l2$df$avg_log2FC[1] == -1.1)
 
 # 7d: Missing p_val_adj
+message("  7d: missing p_val_adj")
 df_noadj <- data.frame(gene = "Z", avg_log2FC = 0.5, p_val = 0.03)
 norm_noadj <- normalize_de_df(df_noadj)
 stopifnot(length(norm_noadj$warnings) > 0)
+
+# 7e: Only p_val_adj (no p_val) — should create p_val fallback
+message("  7e: p_val_adj only (no p_val)")
+df_adjonly <- data.frame(gene = "G1", avg_log2FC = 1.5, p_val_adj = 0.01)
+norm_adjonly <- normalize_de_df(df_adjonly)
+stopifnot("p_val" %in% colnames(norm_adjonly$df))
+stopifnot(identical(norm_adjonly$df$p_val, norm_adjonly$df$p_val_adj))
+stopifnot(any(grepl("fallback", norm_adjonly$warnings)))
+
+# Verify volcano can be generated with p_val_adj-only input
+volcano_adjonly <- tryCatch({
+  build_screport_de(
+    de_df       = df_adjonly,
+    output_file = file.path(pkg_root, "test_adjonly.html"),
+    title       = "DE Test — p_val_adj Only"
+  )
+}, error = function(e) NULL)
+stopifnot(!is.null(volcano_adjonly))
+stopifnot(file.exists(volcano_adjonly$output_file))
+lines_adj <- readLines(volcano_adjonly$output_file, warn = FALSE)
+stopifnot(any(grepl("section-volcano", lines_adj, fixed = TRUE)))
+message("  Volcano section generated with p_val_adj-only input: OK")
+
+# 7f: Both p_val and p_val_adj missing — should stop with error
+message("  7f: both p_val and p_val_adj missing")
+stopifnot(inherits(tryCatch({
+  normalize_de_df(data.frame(gene = "X", avg_log2FC = 0.5))
+}, error = function(e) e), "error"))
 
 message("PASS: All normalize_de_df edge cases handled")
 

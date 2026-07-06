@@ -158,15 +158,35 @@
                                 dataframe = "rows", pretty = FALSE)
 
   # ── 8. Read JS / CSS assets ──
-  js_path <- system.file("assets/dotplot_panel.js", package = "scReportDE")
-  css_path <- system.file("assets/dotplot_panel.css", package = "scReportDE")
+  resolve_asset <- function(filename) {
+    pkg_path <- system.file(file.path("assets", filename), package = "scReportDE")
+    if (nzchar(pkg_path) && file.exists(pkg_path)) return(pkg_path)
 
-  dotplot_js <- if (file.exists(js_path)) {
+    # Dev-mode fallback: look for inst/assets/ relative to package root or cwd
+    src_file <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL)
+    bases <- c(getwd(), if (!is.null(src_file)) dirname(dirname(src_file)))
+    for (base in bases) {
+      dev_path <- file.path(base, "inst", "assets", filename)
+      if (file.exists(dev_path)) return(dev_path)
+    }
+    return("")
+  }
+
+  js_path  <- resolve_asset("dotplot_panel.js")
+  css_path <- resolve_asset("dotplot_panel.css")
+
+  dotplot_js <- if (nzchar(js_path)) {
     paste(readLines(js_path, warn = FALSE), collapse = "\n")
-  } else ""
-  dotplot_css <- if (file.exists(css_path)) {
+  } else {
+    warning("DotPlot JS asset not found — interactive features will be unavailable")
+    ""
+  }
+  dotplot_css <- if (nzchar(css_path)) {
     paste(readLines(css_path, warn = FALSE), collapse = "\n")
-  } else ""
+  } else {
+    warning("DotPlot CSS asset not found — styling may be incomplete")
+    ""
+  }
 
   # ── 9. Build HTML section ──
   section <- htmltools::tags$div(
