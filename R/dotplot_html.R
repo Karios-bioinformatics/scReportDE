@@ -50,17 +50,12 @@
   # ── 2. Collect identity layers ──
   id_layers <- .collect_dotplot_identity_layers(seurat_obj, identity_layers)
 
-  # Inject group_col into identity layers when provided and not already present
+  # Inject group_col into identity layers ONLY when it exists in Seurat metadata.
+  # A missing meta.data column cannot drive x-axis grouping — but it can still
+  # serve as default_identity for marker_df normalisation (see step 3).
   if (!is.null(group_col) && nzchar(group_col)) {
-    if (!group_col %in% id_layers) {
-      # Only add if it exists in meta.data
-      if (group_col %in% colnames(seurat_obj[[]])) {
-        id_layers <- unique(c(group_col, id_layers))
-      } else {
-        # group_col may be a marker_df-only column (e.g. "cluster" in provided table)
-        # Still add it so normalize_marker_df can use it as identity_layer
-        id_layers <- unique(c(group_col, id_layers))
-      }
+    if (group_col %in% colnames(seurat_obj[[]]) && !group_col %in% id_layers) {
+      id_layers <- unique(c(group_col, id_layers))
     }
   }
 
@@ -71,8 +66,13 @@
   }
 
   # ── 3. Normalise marker data ──
-  # Use group_col as default identity layer; fall back to first auto-detected layer or "seurat_clusters"
-  default_id <- group_col %||% (id_layers[1] %||% "seurat_clusters")
+  # Use group_col as default identity layer only when it exists in Seurat metadata.
+  # Otherwise fall back to first auto-detected layer or "seurat_clusters".
+  default_id <- if (!is.null(group_col) && nzchar(group_col) && group_col %in% colnames(seurat_obj[[]])) {
+    group_col
+  } else {
+    id_layers[1] %||% "seurat_clusters"
+  }
   norm_marker <- .normalize_marker_df(marker_df, default_identity = default_id)
 
   # ── 4. Build gene pool ──

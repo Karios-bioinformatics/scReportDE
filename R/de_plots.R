@@ -382,7 +382,11 @@ plot_violin <- function(seurat_obj, de_df, gene = NULL, group_col = NULL,
     }, error = function(e) {
       message("Cannot extract expression from slot '", slot, "'; trying counts slot...")
       tryCatch({
-        as.numeric(get_expr_data(seurat_obj, "counts")[gene, ])
+        if (!is.null(assay)) {
+          as.numeric(SeuratObject::GetAssayData(seurat_obj, assay = assay, layer = "counts")[gene, ])
+        } else {
+          as.numeric(get_expr_data(seurat_obj, "counts")[gene, ])
+        }
       }, error = function(e2) NULL)
     })
 

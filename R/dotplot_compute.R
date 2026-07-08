@@ -346,9 +346,9 @@
   }
 
   # Merge marker stats
-  dot_data$marker_avg_log2FC   <- NA_real_
-  dot_data$marker_p_val_adj    <- NA_real_
-  dot_data$marker_rank         <- NA_integer_
+  # Do NOT pre-create marker_avg_log2FC / marker_p_val_adj / marker_rank on dot_data
+  # before merge — that would cause .x / .y suffixes when marker_sub also has them.
+  # Instead let merge add them naturally from the renamed marker_sub.
   dot_data$parent_identity_layer <- NA_character_
   dot_data$parent_identity_value <- NA_character_
 
@@ -367,16 +367,19 @@
       if ("p_val_adj" %in% colnames(marker_sub)) {
         colnames(marker_sub)[colnames(marker_sub) == "p_val_adj"] <- "marker_p_val_adj"
       }
-      # marker_rank already matches the canonical name, but ensure consistency
-      if ("marker_rank" %in% colnames(marker_sub)) {
-        # keep as-is — JS and R both use marker_rank
-      }
 
       dot_data <- merge(
         dot_data, marker_sub,
         by = c("gene", "identity_layer", "identity_value"),
         all.x = TRUE, sort = FALSE
       )
+    }
+  }
+
+  # Ensure canonical marker columns exist after merge (fill NA if missing)
+  for (col in c("marker_avg_log2FC", "marker_p_val_adj", "marker_rank")) {
+    if (!col %in% colnames(dot_data)) {
+      dot_data[[col]] <- if (col == "marker_rank") NA_integer_ else NA_real_
     }
   }
 
