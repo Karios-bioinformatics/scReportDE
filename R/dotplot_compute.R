@@ -358,12 +358,25 @@
                            colnames(marker_df))
     if (all(c("gene", "identity_layer", "identity_value") %in% mark_cols)) {
       marker_sub <- marker_df[, mark_cols, drop = FALSE]
+
+      # Rename marker stats to dot_data contract names before merge
+      # so JS sees marker_avg_log2FC / marker_p_val_adj / marker_rank
+      if ("avg_log2FC" %in% colnames(marker_sub)) {
+        colnames(marker_sub)[colnames(marker_sub) == "avg_log2FC"] <- "marker_avg_log2FC"
+      }
+      if ("p_val_adj" %in% colnames(marker_sub)) {
+        colnames(marker_sub)[colnames(marker_sub) == "p_val_adj"] <- "marker_p_val_adj"
+      }
+      # marker_rank already matches the canonical name, but ensure consistency
+      if ("marker_rank" %in% colnames(marker_sub)) {
+        # keep as-is — JS and R both use marker_rank
+      }
+
       dot_data <- merge(
         dot_data, marker_sub,
         by = c("gene", "identity_layer", "identity_value"),
         all.x = TRUE, sort = FALSE
       )
-      # Rename merged cols back if they got suffixes
     }
   }
 

@@ -28,6 +28,9 @@
     seurat_obj,
     marker_df           = NULL,
     identity_layers     = NULL,
+    group_col           = NULL,
+    assay               = NULL,
+    slot                = "data",
     marker_pool_top_n   = 50,
     pool_max_genes      = 500,
     top_n               = 10,
@@ -39,21 +42,38 @@
 
   # ── 1. Validate input ──
   if (is.null(seurat_obj)) {
-    return(no_data_block(
-      "DotPlot requires a Seurat object for expression data."
+    return(de_section("dotplot", "Dot Plot",
+      no_data_block("DotPlot requires a Seurat object for expression data.")
     ))
   }
 
   # ── 2. Collect identity layers ──
   id_layers <- .collect_dotplot_identity_layers(seurat_obj, identity_layers)
+
+  # Inject group_col into identity layers when provided and not already present
+  if (!is.null(group_col) && nzchar(group_col)) {
+    if (!group_col %in% id_layers) {
+      # Only add if it exists in meta.data
+      if (group_col %in% colnames(seurat_obj[[]])) {
+        id_layers <- unique(c(group_col, id_layers))
+      } else {
+        # group_col may be a marker_df-only column (e.g. "cluster" in provided table)
+        # Still add it so normalize_marker_df can use it as identity_layer
+        id_layers <- unique(c(group_col, id_layers))
+      }
+    }
+  }
+
   if (length(id_layers) == 0) {
-    return(no_data_block(
-      "No usable identity layers found for DotPlot. Provide dotplot_identity_layers or ensure meta.data has cluster/annotation fields."
+    return(de_section("dotplot", "Dot Plot",
+      no_data_block("No usable identity layers found for DotPlot. Provide dotplot_identity_layers or ensure meta.data has cluster/annotation fields.")
     ))
   }
 
   # ── 3. Normalise marker data ──
-  norm_marker <- .normalize_marker_df(marker_df)
+  # Use group_col as default identity layer; fall back to first auto-detected layer or "seurat_clusters"
+  default_id <- group_col %||% (id_layers[1] %||% "seurat_clusters")
+  norm_marker <- .normalize_marker_df(marker_df, default_identity = default_id)
 
   # ── 4. Build gene pool ──
   gene_pool <- .build_gene_pool(
@@ -69,8 +89,8 @@
     if (!is.null(extra_genes) && length(extra_genes) > 0) {
       gene_pool <- extra_genes
     } else {
-      return(no_data_block(
-        "No marker genes available for DotPlot. Provide a marker data.frame or set dotplot_extra_genes."
+      return(de_section("dotplot", "Dot Plot",
+        no_data_block("No marker genes available for DotPlot. Provide a marker data.frame or set dotplot_extra_genes.")
       ))
     }
   }
@@ -80,12 +100,14 @@
     seurat_obj       = seurat_obj,
     gene_pool        = gene_pool,
     identity_layers  = id_layers,
+    assay            = assay,
+    slot             = slot,
     marker_df        = norm_marker
   )
 
   if (is.null(dot_data) || nrow(dot_data) == 0) {
-    return(no_data_block(
-      "Could not compute DotPlot expression data. Check that the gene pool genes exist in the expression matrix."
+    return(de_section("dotplot", "Dot Plot",
+      no_data_block("Could not compute DotPlot expression data. Check that the gene pool genes exist in the expression matrix.")
     ))
   }
 

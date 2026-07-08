@@ -87,14 +87,30 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
         " / pct.2: ", sprintf("%.3f", df$pct.2))
     }
 
-    # Top N labels (by abs logFC among significant genes)
+    # Top N labels: split equally between up and down to avoid all at same cap
     label_df <- df[is_sig, , drop = FALSE]
     if (nrow(label_df) > 0) {
-      label_df <- label_df[order(-abs(label_df$avg_log2FC)), , drop = FALSE]
-      label_df <- head(label_df, top_n)
+      label_up  <- label_df[label_df$avg_log2FC > 0, , drop = FALSE]
+      label_dn  <- label_df[label_df$avg_log2FC < 0, , drop = FALSE]
+      n_half    <- ceiling(top_n / 2)
+      label_up  <- head(label_up[order(-abs(label_up$avg_log2FC)), , drop = FALSE], n_half)
+      label_dn  <- head(label_dn[order(-abs(label_dn$avg_log2FC)), , drop = FALSE], n_half)
+      label_df  <- rbind(label_up, label_dn)
+      if (nrow(label_df) > top_n) label_df <- head(label_df, top_n)
     }
 
-    title_text <- "Volcano Plot"
+    # Detect marker-only / one-sided data
+    all_pos <- all(df$avg_log2FC >= 0, na.rm = TRUE)
+    all_neg <- all(df$avg_log2FC <= 0, na.rm = TRUE)
+    marker_note <- if (all_pos) {
+      " (marker-only: all logFC \u2265 0)"
+    } else if (all_neg) {
+      " (marker-only: all logFC \u2264 0)"
+    } else {
+      ""
+    }
+
+    title_text <- paste0("Volcano Plot", marker_note)
     if (!is.null(comparison_label)) {
       title_text <- paste0(title_text, ": ", comparison_label)
     }
@@ -131,12 +147,33 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
                                 inherit = FALSE, showlegend = FALSE)
     }
 
-    # Add gene labels for top N
+    # Add gene labels for top N — with jitter for capped coordinates
     if (nrow(label_df) > 0) {
+      lab_x  <- pmax(pmin(label_df$avg_log2FC, 5), -5)
+      lab_y  <- pmin(-log10(pmax(label_df[[y_col]], .Machine$double.xmin)), 20)
+
+      # Deterministic jitter: spread labels that land on cap boundaries
+      x_cap_hi <- which(label_df$avg_log2FC >= 5)
+      x_cap_lo <- which(label_df$avg_log2FC <= -5)
+      y_capped <- which(lab_y >= 20)
+
+      if (length(x_cap_hi) > 0) {
+        jit <- seq(5.0, 4.6, length.out = length(x_cap_hi) + 2)
+        lab_x[x_cap_hi] <- jit[2:(length(x_cap_hi) + 1)]
+      }
+      if (length(x_cap_lo) > 0) {
+        jit <- seq(-5.0, -4.6, length.out = length(x_cap_lo) + 2)
+        lab_x[x_cap_lo] <- jit[2:(length(x_cap_lo) + 1)]
+      }
+      if (length(y_capped) > 0) {
+        jit <- seq(20.0, 18.5, length.out = length(y_capped) + 2)
+        lab_y[y_capped] <- jit[2:(length(y_capped) + 1)]
+      }
+
       p <- plotly::add_annotations(
         p,
-        x      = pmax(pmin(label_df$avg_log2FC, 5), -5),
-        y      = pmin(-log10(pmax(label_df[[y_col]], .Machine$double.xmin)), 20),
+        x      = lab_x,
+        y      = lab_y,
         text   = label_df$gene,
         showarrow = TRUE,
         arrowhead = 1,
@@ -312,9 +349,12 @@ plot_dotplot <- function(seurat_obj, de_df, top_n = 20, n_genes = 15,
 #' @param de_df Normalised DE data.frame
 #' @param gene Optional specific gene to plot; defaults to top gene by p_val_adj
 #' @param group_col Optional group column for x-axis
+#' @param assay Assay name. Default: \code{NULL} (Seurat default).
+#' @param slot Expression data slot. Default: \code{"data"}.
 #' @return A plotly widget, or NULL
 #' @keywords internal
-plot_violin <- function(seurat_obj, de_df, gene = NULL, group_col = NULL) {
+plot_violin <- function(seurat_obj, de_df, gene = NULL, group_col = NULL,
+                         assay = NULL, slot = "data") {
   if (is.null(seurat_obj)) return(NULL)
   if (is.null(de_df) || nrow(de_df) == 0) return(NULL)
 
@@ -332,10 +372,15 @@ plot_violin <- function(seurat_obj, de_df, gene = NULL, group_col = NULL) {
       return(NULL)
     }
 
-    # Extract expression
+    # Extract expression — use caller-specified slot, fall back to counts on failure
     expr_vec <- tryCatch({
-      as.numeric(get_expr_data(seurat_obj, "data")[gene, ])
+      if (!is.null(assay)) {
+        as.numeric(SeuratObject::GetAssayData(seurat_obj, assay = assay, layer = slot)[gene, ])
+      } else {
+        as.numeric(get_expr_data(seurat_obj, slot)[gene, ])
+      }
     }, error = function(e) {
+      message("Cannot extract expression from slot '", slot, "'; trying counts slot...")
       tryCatch({
         as.numeric(get_expr_data(seurat_obj, "counts")[gene, ])
       }, error = function(e2) NULL)

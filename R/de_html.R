@@ -435,7 +435,8 @@ build_de_table <- function(de_df) {
     }
     for (col in c("p-value", "adj. p-value")) {
       if (col %in% colnames(tbl)) {
-        dt <- DT::formatRound(dt, col, digits = 4)
+        # Use formatSignif so tiny p-values show as e.g. 1.23e-120 instead of 0.0000
+        dt <- DT::formatSignif(dt, col, digits = 3)
       }
     }
     for (col in c("pct.1", "pct.2")) {

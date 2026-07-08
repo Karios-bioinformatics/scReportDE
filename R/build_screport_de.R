@@ -195,6 +195,9 @@ build_screport_de <- function(
       seurat_obj       = seurat_obj,
       marker_df        = de_df_norm,
       identity_layers  = dotplot_identity_layers,
+      group_col        = group_col,
+      assay            = assay,
+      slot             = slot,
       marker_pool_top_n = dotplot_marker_pool_top_n,
       pool_max_genes   = dotplot_pool_max_genes,
       top_n            = dotplot_top_n,
@@ -212,7 +215,8 @@ build_screport_de <- function(
   # Violin plot
   message("  - Violin plot...")
   violin_widget <- tryCatch({
-    plot_violin(seurat_obj, de_df_norm, group_col = group_col)
+    plot_violin(seurat_obj, de_df_norm, group_col = group_col,
+                assay = assay, slot = slot)
   }, error = function(e) {
     all_warnings <<- c(all_warnings, paste("Violin plot:", e$message))
     NULL
