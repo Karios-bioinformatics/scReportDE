@@ -31,17 +31,23 @@ de_plot_theme <- function(title = "", xlab = "", ylab = "") {
 #'
 #' Generates an interactive plotly volcano plot with log2FC on the x-axis
 #' and -log10(p-value) on the y-axis. Significant genes (p_val_adj < alpha)
-#' are highlighted. Top N up- and down-regulated genes by absolute logFC
-#' are labelled.
+#' are highlighted. The main scatter uses WebGL (scattergl) for performance
+#' with large datasets. Top genes by absolute logFC are labelled; annotation
+#' count is conservative (marker-only: 5; bidirectional: 8) to avoid overlap.
+#' Complete gene information is always available in the hover tooltip.
 #'
 #' @param de_df Normalised DE data.frame (must contain gene, avg_log2FC, p_val_adj)
-#' @param top_n Number of top genes to label (default 20)
+#' @param top_n Number of top genes to label (default 20; actual labels capped by
+#'   label_top_n)
 #' @param alpha Significance threshold (default 0.05)
 #' @param comparison_label Display label (e.g. "A vs B")
+#' @param label_top_n Max annotation labels. When NULL (default), auto-detects:
+#'   5 for marker-only data, 8 for bidirectional. Full info in hover.
 #' @return A plotly widget, or NULL on failure
 #' @keywords internal
 plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
-                         comparison_label = NULL) {
+                         comparison_label = NULL,
+                         label_top_n = NULL) {
   if (is.null(de_df) || nrow(de_df) == 0) return(NULL)
 
   out <- tryCatch({
@@ -69,7 +75,7 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
     colors <- c("Up (sig)" = "#E6194B", "Down (sig)" = "#3CB44B",
                 "Not sig" = "#b2bec3")
 
-    # Hover text
+    # Hover text — complete gene info available here even when not labelled
     p_val_line <- if ("p_val" %in% colnames(df)) {
       paste0("p_val: ", fmt_pval(df$p_val), "<br>")
     } else ""
@@ -87,21 +93,36 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
         " / pct.2: ", sprintf("%.3f", df$pct.2))
     }
 
-    # Top N labels: split equally between up and down to avoid all at same cap
-    label_df <- df[is_sig, , drop = FALSE]
-    if (nrow(label_df) > 0) {
-      label_up  <- label_df[label_df$avg_log2FC > 0, , drop = FALSE]
-      label_dn  <- label_df[label_df$avg_log2FC < 0, , drop = FALSE]
-      n_half    <- ceiling(top_n / 2)
-      label_up  <- head(label_up[order(-abs(label_up$avg_log2FC)), , drop = FALSE], n_half)
-      label_dn  <- head(label_dn[order(-abs(label_dn$avg_log2FC)), , drop = FALSE], n_half)
-      label_df  <- rbind(label_up, label_dn)
-      if (nrow(label_df) > top_n) label_df <- head(label_df, top_n)
-    }
-
-    # Detect marker-only / one-sided data
+    # Detect marker-only / one-sided data BEFORE label selection
     all_pos <- all(df$avg_log2FC >= 0, na.rm = TRUE)
     all_neg <- all(df$avg_log2FC <= 0, na.rm = TRUE)
+    is_marker_only <- all_pos || all_neg
+
+    # Determine annotation count: user-specified > auto-detect
+    if (is.null(label_top_n)) {
+      label_top_n <- if (is_marker_only) 5L else 8L
+    }
+    # Cap at user-provided top_n just in case
+    label_top_n <- min(label_top_n, top_n)
+
+    # Top N labels: split between up and down when data is bidirectional
+    label_df <- df[is_sig, , drop = FALSE]
+    if (nrow(label_df) > 0) {
+      if (is_marker_only) {
+        # One-sided: just take top by abs(logFC)
+        label_df <- head(label_df[order(-abs(label_df$avg_log2FC)), , drop = FALSE], label_top_n)
+      } else {
+        # Bidirectional: split equally between up and down
+        label_up  <- label_df[label_df$avg_log2FC > 0, , drop = FALSE]
+        label_dn  <- label_df[label_df$avg_log2FC < 0, , drop = FALSE]
+        n_half    <- ceiling(label_top_n / 2)
+        label_up  <- head(label_up[order(-abs(label_up$avg_log2FC)), , drop = FALSE], n_half)
+        label_dn  <- head(label_dn[order(-abs(label_dn$avg_log2FC)), , drop = FALSE], n_half)
+        label_df  <- rbind(label_up, label_dn)
+        if (nrow(label_df) > label_top_n) label_df <- head(label_df, label_top_n)
+      }
+    }
+
     marker_note <- if (all_pos) {
       " (marker-only: all logFC \u2265 0)"
     } else if (all_neg) {
@@ -115,11 +136,12 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
       title_text <- paste0(title_text, ": ", comparison_label)
     }
 
+    # Main scatter uses WebGL for performance with large datasets
     p <- plotly::plot_ly(
       data      = df,
       x         = ~logfc,
       y         = ~neglog10,
-      type      = "scatter",
+      type      = "scattergl",
       mode      = "markers",
       color     = ~sig_cat,
       colors    = colors,
@@ -147,7 +169,8 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
                                 inherit = FALSE, showlegend = FALSE)
     }
 
-    # Add gene labels for top N — with jitter for capped coordinates
+    # Add gene labels — conservative count, with jitter for capped coordinates
+    # Prefer fewer labels over overlapping; full info always in hover
     if (nrow(label_df) > 0) {
       lab_x  <- pmax(pmin(label_df$avg_log2FC, 5), -5)
       lab_y  <- pmin(-log10(pmax(label_df[[y_col]], .Machine$double.xmin)), 20)
@@ -158,15 +181,15 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
       y_capped <- which(lab_y >= 20)
 
       if (length(x_cap_hi) > 0) {
-        jit <- seq(5.0, 4.6, length.out = length(x_cap_hi) + 2)
+        jit <- seq(5.0, 4.2, length.out = length(x_cap_hi) + 2)
         lab_x[x_cap_hi] <- jit[2:(length(x_cap_hi) + 1)]
       }
       if (length(x_cap_lo) > 0) {
-        jit <- seq(-5.0, -4.6, length.out = length(x_cap_lo) + 2)
+        jit <- seq(-5.0, -4.2, length.out = length(x_cap_lo) + 2)
         lab_x[x_cap_lo] <- jit[2:(length(x_cap_lo) + 1)]
       }
       if (length(y_capped) > 0) {
-        jit <- seq(20.0, 18.5, length.out = length(y_capped) + 2)
+        jit <- seq(20.0, 18.0, length.out = length(y_capped) + 2)
         lab_y[y_capped] <- jit[2:(length(y_capped) + 1)]
       }
 

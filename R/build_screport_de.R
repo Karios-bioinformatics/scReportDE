@@ -41,6 +41,9 @@
 #' @param only_pos Return only positive markers. Default: FALSE.
 #' @param top_n Number of top genes labelled in volcano / used in dot plot.
 #'   Default: 20.
+#' @param volcano_label_top_n Max gene labels on Volcano Plot. When NULL
+#'   (default), auto-detects: 5 for marker-only data, 8 for bidirectional.
+#'   Set explicitly to override. Full gene info available in hover.
 #' @param dotplot_identity_layers Character vector of meta.data columns to use
 #'   as x-axis grouping variables for the interactive DotPlot. When NULL, defaults
 #'   are auto-detected (see \code{.collect_dotplot_identity_layers}).
@@ -109,6 +112,7 @@ build_screport_de <- function(
     min_pct         = 0.1,
     only_pos        = FALSE,
     top_n           = 20,
+    volcano_label_top_n         = NULL,
     dotplot_identity_layers     = NULL,
     dotplot_marker_pool_top_n   = 50,
     dotplot_pool_max_genes      = 500,
@@ -182,7 +186,8 @@ build_screport_de <- function(
   message("  - Volcano plot...")
   volcano_widget <- tryCatch({
     plot_volcano(de_df_norm, top_n = top_n, alpha = 0.05,
-                 comparison_label = comparison_label)
+                 comparison_label = comparison_label,
+                 label_top_n = volcano_label_top_n)
   }, error = function(e) {
     all_warnings <<- c(all_warnings, paste("Volcano plot:", e$message))
     NULL

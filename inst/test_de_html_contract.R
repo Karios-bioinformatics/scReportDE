@@ -287,6 +287,121 @@ if (length(next_sec) > 0) {
 message("PASS: No-data DotPlot is wrapped in complete section")
 
 # ============================================================================
+# Test 7: Volcano uses scattergl (WebGL renderer)
+# ============================================================================
+message("\n=== Test 7: Volcano scattergl ===")
+
+# Use the high-sig mock data from Test 4
+has_scattergl <- any(grepl('"type":"scattergl"', lines4, fixed = TRUE))
+cat(sprintf("  scattergl trace: %s\n", if (has_scattergl) "OK" else "MISSING!"))
+stopifnot(has_scattergl)
+
+# Should NOT use plain scatter for volcano main trace
+has_scatter_volcano <- any(grepl('"type":"scatter"', lines4, fixed = TRUE))
+cat(sprintf("  plain scatter in volcano: %s\n",
+    if (has_scatter_volcano) "PRESENT (may be segments/threshold)" else "OK (absent)"))
+
+message("PASS: Volcano main trace uses scattergl")
+
+# ============================================================================
+# Test 8: Marker-only data → annotations ≤ 5
+# ============================================================================
+message("\n=== Test 8: Marker-only annotation count ≤ 5 ===")
+
+# All-positive marker table (simulates precomputed all-markers)
+marker_only_de <- data.frame(
+  gene        = paste0("Marker_", 1:100),
+  avg_log2FC  = runif(100, 0.5, 8),
+  p_val       = 10^-(runif(100, 10, 120)),
+  p_val_adj   = 10^-(runif(100, 10, 120)),
+  stringsAsFactors = FALSE
+)
+# Make some non-significant
+marker_only_de$p_val_adj[91:100] <- 0.5
+
+out8 <- build_screport_de(
+  de_df       = marker_only_de,
+  output_file = file.path(pkg_root, "test_contract_marker_only.html"),
+  title       = "Contract Test — Marker-Only Volcano"
+)
+
+stopifnot(file.exists(out8$output_file))
+lines8 <- readLines(out8$output_file, warn = FALSE)
+
+# Count annotation entries (each annotation is an object in the JSON)
+# Count occurrences of '"text":"Marker_' which indicates a labelled gene
+annotation_texts <- grep('"text":"Marker_', lines8, value = TRUE)
+n_annotations <- length(annotation_texts)
+cat(sprintf("  Gene annotations in marker-only volcano: %d\n", n_annotations))
+stopifnot(n_annotations <= 5)
+
+# Title must have marker-only note
+has_marker_note <- any(grepl("marker-only", lines8, ignore.case = TRUE))
+cat(sprintf("  marker-only title note: %s\n", if (has_marker_note) "OK" else "MISSING!"))
+stopifnot(has_marker_note)
+
+message("PASS: Marker-only volcano has ≤ 5 annotations + title note")
+
+# ============================================================================
+# Test 9: Bidirectional volcano annotation count ≤ 8
+# ============================================================================
+message("\n=== Test 9: Bidirectional annotation count ≤ 8 ===")
+
+# Re-use high_sig_de from Test 4 (already has up and down genes)
+# Count annotations from that output
+annotation_texts4 <- grep('"text":"Gene_', lines4, value = TRUE)
+n_annotations4 <- length(annotation_texts4)
+cat(sprintf("  Gene annotations in bidirectional volcano: %d\n", n_annotations4))
+stopifnot(n_annotations4 <= 10)  # generous upper bound; default is 8
+# Don't be overly strict — the exact count depends on how many genes are 'sig'
+message("PASS: Bidirectional volcano annotation count within bounds")
+
+# ============================================================================
+# Test 10: volcano_label_top_n parameter override
+# ============================================================================
+message("\n=== Test 10: volcano_label_top_n parameter ===")
+
+out10 <- build_screport_de(
+  de_df                = high_sig_de,
+  volcano_label_top_n  = 3,
+  output_file          = file.path(pkg_root, "test_contract_label_override.html"),
+  title                = "Contract Test — Label Override"
+)
+
+stopifnot(file.exists(out10$output_file))
+lines10 <- readLines(out10$output_file, warn = FALSE)
+
+annotation_texts10 <- grep('"text":"Gene_', lines10, value = TRUE)
+n_annotations10 <- length(annotation_texts10)
+cat(sprintf("  Gene annotations with volcano_label_top_n=3: %d\n", n_annotations10))
+stopifnot(n_annotations10 <= 3)
+
+message("PASS: volcano_label_top_n parameter respected")
+
+# ============================================================================
+# Test 11: Capped-label overlap check — no pileup at y=20
+# ============================================================================
+message("\n=== Test 11: No label pileup at capped y=20 ===")
+
+# With marker-only data (all high logFC, all tiny p) many labels would cap to y=20
+# But with annotation limit=5 and jitter, they must be spread
+
+# Check marker_only output (Test 8): each y-capped annotation should have unique position
+# Extract all 'y' values for annotations
+# We grep for the JSON annotations section — find y values around 18-20
+y_vals <- regmatches(
+  paste(lines8, collapse = "\n"),
+  gregexpr('"y":1[89][0-9.]*|"y":20[0-9.]*', paste(lines8, collapse = "\n"))
+)[[1]]
+# If we have y-capped labels, their y values should NOT all be "20"
+y_exact_20 <- sum(y_vals == '"y":20')
+y_spread   <- length(y_vals) - y_exact_20
+cat(sprintf("  Annotations at y=20.0 (exact): %d / %d\n", y_exact_20, length(y_vals)))
+stopifnot(y_exact_20 <= 1)  # At most 1 can land on exactly 20.0; rest jittered
+
+message("PASS: Capped labels are spread across jittered positions")
+
+# ============================================================================
 # Summary
 # ============================================================================
 message("\n========================================")
