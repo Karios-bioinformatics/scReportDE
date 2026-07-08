@@ -250,6 +250,30 @@ function renderHtmlWidgets() {
   }
 }
 
+// Fires events that tell htmlwidget bindings (esp. DT) the container is now
+// visible.  DT\'s datatables-binding skips renderValue() when offsetWidth === 0
+// (hidden tab), then marks itself html-widget-static-bound.  staticRender()
+// alone cannot fix this – we must trigger the shown event so binding.resize()
+// detects a non-zero offsetWidth and calls renderValue().
+function triggerHtmlWidgetResize() {
+  try {
+    if (window.jQuery) {
+      window.jQuery(document).trigger("shown.htmlwidgets");
+      window.jQuery(document).trigger("shown.bs.tab.htmlwidgets");
+    }
+  } catch(e) { console.warn(e); }
+
+  try {
+    if (typeof Event === "function") {
+      window.dispatchEvent(new Event("resize"));
+    } else {
+      var evt = document.createEvent("UIEvents");
+      evt.initUIEvent("resize", true, false, window, 0);
+      window.dispatchEvent(evt);
+    }
+  } catch(e) { console.warn(e); }
+}
+
 function resizeVisibleWidgets(section) {
   if (!section) return;
 
@@ -261,7 +285,7 @@ function resizeVisibleWidgets(section) {
     });
   }
 
-  // DT table adjust — hidden-tab init requires explicit redraw
+  // DT table adjust — table should exist after triggerHtmlWidgetResize()
   if (window.jQuery && window.$.fn && window.$.fn.dataTable) {
     var tables = section.querySelectorAll(
       "table.dataTable, .dataTables_wrapper table, table.display"
@@ -293,15 +317,30 @@ function switchSection(name) {
     targetSection.classList.add("de-visible");
   }
 
-  // Hidden-tab widgets need a beat to measure, then another to finalise
-  setTimeout(function()  { renderHtmlWidgets(); resizeVisibleWidgets(targetSection); }, 100);
-  setTimeout(function()  { resizeVisibleWidgets(targetSection); }, 350);
+  // Immediately tell htmlwidget bindings the container is now visible.
+  // DT needs this BEFORE the first setTimeout so its resize() can detect
+  // non-zero offsetWidth and proceed to renderValue().
+  renderHtmlWidgets();
+  triggerHtmlWidgetResize();
+
+  // Dual-delay: first beat for layout + render, second for final size stabilisation
+  setTimeout(function() {
+    renderHtmlWidgets();
+    triggerHtmlWidgetResize();
+    resizeVisibleWidgets(targetSection);
+  }, 100);
+
+  setTimeout(function() {
+    triggerHtmlWidgetResize();
+    resizeVisibleWidgets(targetSection);
+  }, 350);
 }
 
 // ── Initial Render ─────────────────────────────────────────
 
 window.addEventListener("DOMContentLoaded", function() {
   renderHtmlWidgets();
+  triggerHtmlWidgetResize();
 });
 
 // ── Window Resize ──────────────────────────────────────────
