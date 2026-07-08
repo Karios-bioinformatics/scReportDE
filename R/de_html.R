@@ -242,6 +242,42 @@ report_js <- function() {
 '
 // === scReportDE v0.1.0 ===
 
+// ── Helpers ────────────────────────────────────────────────
+
+function renderHtmlWidgets() {
+  if (window.HTMLWidgets && typeof window.HTMLWidgets.staticRender === "function") {
+    try { window.HTMLWidgets.staticRender(); } catch(e) { console.warn(e); }
+  }
+}
+
+function resizeVisibleWidgets(section) {
+  if (!section) return;
+
+  // Plotly resize
+  if (window.Plotly) {
+    var plots = section.querySelectorAll(".js-plotly-plot");
+    plots.forEach(function(p) {
+      try { Plotly.Plots.resize(p); } catch(e) {}
+    });
+  }
+
+  // DT table adjust — hidden-tab init requires explicit redraw
+  if (window.jQuery && window.$.fn && window.$.fn.dataTable) {
+    var tables = section.querySelectorAll(
+      "table.dataTable, .dataTables_wrapper table, table.display"
+    );
+    tables.forEach(function(tbl) {
+      try {
+        if ($.fn.dataTable.isDataTable(tbl)) {
+          $(tbl).DataTable().columns.adjust().draw(false);
+        }
+      } catch(e) { console.warn(e); }
+    });
+  }
+}
+
+// ── Section Switching ──────────────────────────────────────
+
 function switchSection(name) {
   var items = document.querySelectorAll(".de-nav-item");
   items.forEach(function(el) { el.classList.remove("active"); });
@@ -257,36 +293,22 @@ function switchSection(name) {
     targetSection.classList.add("de-visible");
   }
 
-  setTimeout(function() {
-    var plots = targetSection
-      ? targetSection.querySelectorAll(".js-plotly-plot")
-      : [];
-    plots.forEach(function(p) {
-      try { Plotly.Plots.resize(p); } catch(e) {}
-    });
-
-    // Redraw DT tables when their container becomes visible
-    if (targetSection) {
-      var dtTables = targetSection.querySelectorAll(".dataTable");
-      dtTables.forEach(function(tbl) {
-        try {
-          if ($.fn.dataTable.isDataTable(tbl)) {
-            $(tbl).DataTable().columns.adjust().draw(false);
-          }
-        } catch(e) {}
-      });
-    }
-  }, 100);
+  // Hidden-tab widgets need a beat to measure, then another to finalise
+  setTimeout(function()  { renderHtmlWidgets(); resizeVisibleWidgets(targetSection); }, 100);
+  setTimeout(function()  { resizeVisibleWidgets(targetSection); }, 350);
 }
 
+// ── Initial Render ─────────────────────────────────────────
+
+window.addEventListener("DOMContentLoaded", function() {
+  renderHtmlWidgets();
+});
+
+// ── Window Resize ──────────────────────────────────────────
+
 window.addEventListener("resize", function() {
-  if (!window.Plotly) return;
   var visible = document.querySelector(".de-section.de-visible");
-  if (!visible) return;
-  var plots = visible.querySelectorAll(".js-plotly-plot");
-  plots.forEach(function(p) {
-    try { Plotly.Plots.resize(p); } catch(e) {}
-  });
+  resizeVisibleWidgets(visible);
 });
 '
 }
