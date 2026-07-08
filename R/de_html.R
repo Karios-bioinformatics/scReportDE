@@ -477,7 +477,7 @@ build_de_table <- function(de_df) {
       )
     }
 
-    htmltools::tags$div(class = "de-table-wrapper", dt)
+    htmltools::tags$div(class = "de-table-wrapper", htmltools::as.tags(dt))
 
   }, error = function(e) {
     warning("DE table generation failed: ", e$message)
