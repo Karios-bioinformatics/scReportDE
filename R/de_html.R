@@ -199,6 +199,17 @@ body {
   font-weight: 700; margin-right: 6px;
 }
 
+/* ---- Violin Plot ---- */
+#violin-plot {
+  min-height: 350px;
+  width: 100%;
+}
+#violin-plot .js-plotly-plot,
+#violin-plot .plotly,
+#violin-plot .plot-container {
+  width: 100% !important;
+}
+
 /* ---- No-data placeholder ---- */
 .no-data {
   color: var(--sr-muted); font-style: italic; padding: 20px 0;
@@ -253,7 +264,19 @@ function switchSection(name) {
     plots.forEach(function(p) {
       try { Plotly.Plots.resize(p); } catch(e) {}
     });
-  }, 50);
+
+    // Redraw DT tables when their container becomes visible
+    if (targetSection) {
+      var dtTables = targetSection.querySelectorAll(".dataTable");
+      dtTables.forEach(function(tbl) {
+        try {
+          if ($.fn.dataTable.isDataTable(tbl)) {
+            $(tbl).DataTable().columns.adjust().draw(false);
+          }
+        } catch(e) {}
+      });
+    }
+  }, 100);
 }
 
 window.addEventListener("resize", function() {
@@ -543,12 +566,15 @@ build_html <- function(de_df, overview_cards, volcano_widget,
     )
   }
 
-  # Violin Plot
-  sections$violin <- de_section(
-    "violin", "Violin Plot",
-    if (!is.null(violin_widget)) plot_block("Top Gene Expression", violin_widget)
-    else no_data_block("Violin plot requires a Seurat object for expression data.")
-  )
+  # Violin Plot — interactive panel or static fallback
+  if (!is.null(violin_widget)) {
+    sections$violin <- violin_widget
+  } else {
+    sections$violin <- de_section(
+      "violin", "Violin Plot",
+      no_data_block("Violin plot requires a Seurat object for expression data.")
+    )
+  }
 
   # Method Info
   sections$method <- de_section(

@@ -123,6 +123,21 @@
   width: 100%;
 }
 
+/* Scroll container wraps plotly for long gene lists */
+#dotplot-scroll {
+  max-height: 650px;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#dotplot-scroll .js-plotly-plot,
+#dotplot-scroll .plotly,
+#dotplot-scroll .plot-container {
+  width: 100% !important;
+}
+
 #dotplot-plot .js-plotly-plot,
 #dotplot-plot .plotly,
 #dotplot-plot .plot-container {

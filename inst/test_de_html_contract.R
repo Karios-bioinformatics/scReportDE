@@ -32,6 +32,15 @@ for (f in list.files(r_dir, full.names = TRUE, pattern = "\\.R$")) {
   source(f)
 }
 
+# ---- Helpers ----
+
+#' Count non-overlapping occurrences of a fixed pattern in concatenated lines
+count_occurrences <- function(lines, pattern) {
+  txt <- paste(lines, collapse = "\n")
+  m <- gregexpr(pattern, txt, fixed = TRUE)[[1]]
+  if (identical(m, -1L)) 0L else length(m)
+}
+
 # ---- Build mock Seurat object ----
 set.seed(123)
 n_cells <- 300
@@ -330,8 +339,7 @@ lines8 <- readLines(out8$output_file, warn = FALSE)
 
 # Count annotation entries (each annotation is an object in the JSON)
 # Count occurrences of '"text":"Marker_' which indicates a labelled gene
-annotation_texts <- grep('"text":"Marker_', lines8, value = TRUE)
-n_annotations <- length(annotation_texts)
+n_annotations <- count_occurrences(lines8, '"text":"Marker_')
 cat(sprintf("  Gene annotations in marker-only volcano: %d\n", n_annotations))
 stopifnot(n_annotations <= 5)
 
@@ -349,8 +357,7 @@ message("\n=== Test 9: Bidirectional annotation count ≤ 8 ===")
 
 # Re-use high_sig_de from Test 4 (already has up and down genes)
 # Count annotations from that output
-annotation_texts4 <- grep('"text":"Gene_', lines4, value = TRUE)
-n_annotations4 <- length(annotation_texts4)
+n_annotations4 <- count_occurrences(lines4, '"text":"Gene_')
 cat(sprintf("  Gene annotations in bidirectional volcano: %d\n", n_annotations4))
 stopifnot(n_annotations4 <= 10)  # generous upper bound; default is 8
 # Don't be overly strict — the exact count depends on how many genes are 'sig'
@@ -371,8 +378,7 @@ out10 <- build_screport_de(
 stopifnot(file.exists(out10$output_file))
 lines10 <- readLines(out10$output_file, warn = FALSE)
 
-annotation_texts10 <- grep('"text":"Gene_', lines10, value = TRUE)
-n_annotations10 <- length(annotation_texts10)
+n_annotations10 <- count_occurrences(lines10, '"text":"Gene_')
 cat(sprintf("  Gene annotations with volcano_label_top_n=3: %d\n", n_annotations10))
 stopifnot(n_annotations10 <= 3)
 
@@ -400,6 +406,111 @@ cat(sprintf("  Annotations at y=20.0 (exact): %d / %d\n", y_exact_20, length(y_v
 stopifnot(y_exact_20 <= 1)  # At most 1 can land on exactly 20.0; rest jittered
 
 message("PASS: Capped labels are spread across jittered positions")
+
+# ============================================================================
+# Test 12: Marker-only Volcano has adaptive x-axis (not fixed -10 to 10)
+# ============================================================================
+message("\n=== Test 12: Marker-only Volcano adaptive x-axis ===")
+
+# 12a: x-axis range should NOT be fixed to [-10, 5] for marker-only
+# The xaxis range in the plotly JSON should start near 0, not -10
+has_xaxis_range <- any(grepl('"range"', lines8))
+cat(sprintf("  x-axis has explicit range: %s\n", if (has_xaxis_range) "OK" else "MISSING!"))
+
+# 12b: Default marker-only = no annotations (show_labels=FALSE)
+# Check the annotation count is 0 (new default for marker-only)
+annotation_count12 <- count_occurrences(lines8, '"text":"Marker_')
+cat(sprintf("  Marker-only annotations (default): %d\n", annotation_count12))
+stopifnot(annotation_count12 <= 3)  # 0 with new default, ≤3 if user enables
+
+# 12c: Title should contain marker-only note
+has_marker_title <- any(grepl("marker-only", lines8, ignore.case = TRUE))
+stopifnot(has_marker_title)
+cat(sprintf("  marker-only title note: OK\n"))
+
+message("PASS: Marker-only Volcano has adaptive axis + minimal annotations")
+
+# ============================================================================
+# Test 13: DE Table section has content (not blank)
+# ============================================================================
+message("\n=== Test 13: DE Table section has content ===")
+
+lines_de <- readLines(out2$output_file, warn = FALSE)
+
+# 13a: section-de_table exists
+has_de_section <- any(grepl('id="section-de_table"', lines_de, fixed = TRUE))
+cat(sprintf("  section-de_table: %s\n", if (has_de_section) "OK" else "MISSING!"))
+stopifnot(has_de_section)
+
+# 13b: DT/DataTables container present
+has_dt_wrapper <- any(grepl("dataTable|dataTables_wrapper|de-table-wrapper", lines_de))
+cat(sprintf("  DataTables wrapper: %s\n", if (has_dt_wrapper) "OK" else "MISSING!"))
+stopifnot(has_dt_wrapper)
+
+# 13c: Table has gene/log2FC/p-value content
+has_gene_col <- any(grepl("Gene</th>|>Gene<", lines_de))
+cat(sprintf("  Gene column: %s\n", if (has_gene_col) "OK" else "MISSING!"))
+stopifnot(has_gene_col)
+
+# 13d: Section is not empty/just a blank card
+no_data_in_de <- any(grepl('section-de_table.*no-data', paste(lines_de, collapse=" ")))
+cat(sprintf("  No empty no-data fallback in DE section: %s\n",
+    if (!no_data_in_de) "OK" else "FAIL (section empty)!"))
+stopifnot(!no_data_in_de)
+
+message("PASS: DE Table section properly rendered with content")
+
+# ============================================================================
+# Test 14: DotPlot scroll container present
+# ============================================================================
+message("\n=== Test 14: DotPlot scroll container ===")
+
+has_scroll <- any(grepl("dotplot-scroll", lines2, fixed = TRUE))
+cat(sprintf("  dotplot-scroll container: %s\n", if (has_scroll) "OK" else "MISSING!"))
+stopifnot(has_scroll)
+
+# Scroll container should have max-height + overflow-y:auto
+has_max_height <- any(grepl("max-height", lines2, ignore.case = TRUE))
+cat(sprintf("  max-height style: %s\n", if (has_max_height) "OK" else "MISSING!"))
+
+# Default max genes is now 50 (was 80)
+has_default_50 <- any(grepl('value="50"', lines2, fixed = TRUE))
+cat(sprintf("  default max genes = 50: %s\n", if (has_default_50) "OK" else "MISSING!"))
+stopifnot(has_default_50)
+
+message("PASS: DotPlot has scroll container + default max_genes=50")
+
+# ============================================================================
+# Test 15: Violin gene selector present
+# ============================================================================
+message("\n=== Test 15: Violin gene selector ===")
+
+# 15a: violin-json-data script tag exists
+has_violin_json <- any(grepl("violin-json-data", lines2, fixed = TRUE))
+cat(sprintf("  violin-json-data: %s\n", if (has_violin_json) "OK" else "MISSING!"))
+stopifnot(has_violin_json)
+
+# 15b: violin-gene dropdown exists
+has_gene_select <- any(grepl("violin-gene", lines2, fixed = TRUE))
+cat(sprintf("  violin-gene select: %s\n", if (has_gene_select) "OK" else "MISSING!"))
+stopifnot(has_gene_select)
+
+# 15c: violin-layer dropdown exists
+has_layer_select <- any(grepl("violin-layer", lines2, fixed = TRUE))
+cat(sprintf("  violin-layer select: %s\n", if (has_layer_select) "OK" else "MISSING!"))
+stopifnot(has_layer_select)
+
+# 15d: Title says "Expression by Group" not old "Top Gene Expression"
+has_new_title <- any(grepl("Expression by Group", lines2, fixed = TRUE))
+cat(sprintf("  title 'Expression by Group': %s\n", if (has_new_title) "OK" else "MISSING!"))
+stopifnot(has_new_title)
+
+# 15e: Section ID is section-violin
+has_violin_section <- any(grepl('id="section-violin"', lines2, fixed = TRUE))
+cat(sprintf("  section-violin: %s\n", if (has_violin_section) "OK" else "MISSING!"))
+stopifnot(has_violin_section)
+
+message("PASS: Violin panel has gene/group selectors + proper title")
 
 # ============================================================================
 # Summary

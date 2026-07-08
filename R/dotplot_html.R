@@ -220,12 +220,19 @@
 
     htmltools::tags$div(class = "de-section-title", "Marker DotPlot"),
 
-    # Controls
+    # Controls (sticky at top)
     htmltools::tags$div(id = "dotplot-controls"),
 
-    # Plot area
-    htmltools::tags$div(id = "dotplot-plot",
-      style = "min-height:350px; width:100%;"),
+    # Scrollable plot container — prevents page overflow with many genes
+    htmltools::tags$div(id = "dotplot-scroll",
+      htmltools::tags$div(id = "dotplot-plot",
+        style = "min-height:350px; width:100%;")
+    ),
+    htmltools::tags$div(
+      class = "dp-message",
+      style = "display:block;font-size:0.68em;color:#95a5a6;padding:4px 16px 8px;background:transparent;border:none;",
+      "\u2139\ufe0f Large gene panels are scrollable. Hover points for full marker stats."
+    ),
 
     # Embedded JSON data
     htmltools::tags$script(

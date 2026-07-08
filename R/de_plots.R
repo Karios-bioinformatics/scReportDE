@@ -31,23 +31,25 @@ de_plot_theme <- function(title = "", xlab = "", ylab = "") {
 #'
 #' Generates an interactive plotly volcano plot with log2FC on the x-axis
 #' and -log10(p-value) on the y-axis. Significant genes (p_val_adj < alpha)
-#' are highlighted. The main scatter uses WebGL (scattergl) for performance
-#' with large datasets. Top genes by absolute logFC are labelled; annotation
-#' count is conservative (marker-only: 5; bidirectional: 8) to avoid overlap.
+#' are highlighted. The main scatter uses WebGL (scattergl) for performance.
+#' For marker-only data, the x-axis adapts to the data range and annotations
+#' are disabled by default (use show_labels=TRUE to enable up to 3 labels).
 #' Complete gene information is always available in the hover tooltip.
 #'
 #' @param de_df Normalised DE data.frame (must contain gene, avg_log2FC, p_val_adj)
-#' @param top_n Number of top genes to label (default 20; actual labels capped by
-#'   label_top_n)
+#' @param top_n Number of top genes to label (default 20)
 #' @param alpha Significance threshold (default 0.05)
 #' @param comparison_label Display label (e.g. "A vs B")
-#' @param label_top_n Max annotation labels. When NULL (default), auto-detects:
-#'   5 for marker-only data, 8 for bidirectional. Full info in hover.
+#' @param label_top_n Max annotation labels. When NULL, auto-detects from
+#'   show_labels and data type.
+#' @param show_labels Logical. Show gene annotations. Default FALSE for
+#'   marker-only, TRUE for bidirectional. Set explicitly to override.
 #' @return A plotly widget, or NULL on failure
 #' @keywords internal
 plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
                          comparison_label = NULL,
-                         label_top_n = NULL) {
+                         label_top_n = NULL,
+                         show_labels = NULL) {
   if (is.null(de_df) || nrow(de_df) == 0) return(NULL)
 
   out <- tryCatch({
@@ -98,21 +100,31 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
     all_neg <- all(df$avg_log2FC <= 0, na.rm = TRUE)
     is_marker_only <- all_pos || all_neg
 
+    # Default show_labels: FALSE for marker-only (avoid label pile-up),
+    # TRUE for bidirectional (useful diagnostics)
+    if (is.null(show_labels)) {
+      show_labels <- !is_marker_only
+    }
+
     # Determine annotation count: user-specified > auto-detect
     if (is.null(label_top_n)) {
-      label_top_n <- if (is_marker_only) 5L else 8L
+      if (!show_labels) {
+        label_top_n <- 0L
+      } else if (is_marker_only) {
+        label_top_n <- 3L
+      } else {
+        label_top_n <- 8L
+      }
     }
-    # Cap at user-provided top_n just in case
+    # Cap at user-provided top_n
     label_top_n <- min(label_top_n, top_n)
 
-    # Top N labels: split between up and down when data is bidirectional
+    # Top N labels
     label_df <- df[is_sig, , drop = FALSE]
-    if (nrow(label_df) > 0) {
+    if (nrow(label_df) > 0 && label_top_n > 0) {
       if (is_marker_only) {
-        # One-sided: just take top by abs(logFC)
         label_df <- head(label_df[order(-abs(label_df$avg_log2FC)), , drop = FALSE], label_top_n)
       } else {
-        # Bidirectional: split equally between up and down
         label_up  <- label_df[label_df$avg_log2FC > 0, , drop = FALSE]
         label_dn  <- label_df[label_df$avg_log2FC < 0, , drop = FALSE]
         n_half    <- ceiling(label_top_n / 2)
@@ -121,6 +133,8 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
         label_df  <- rbind(label_up, label_dn)
         if (nrow(label_df) > label_top_n) label_df <- head(label_df, label_top_n)
       }
+    } else {
+      label_df <- df[0, , drop = FALSE]  # empty
     }
 
     marker_note <- if (all_pos) {
@@ -134,6 +148,16 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
     title_text <- paste0("Volcano Plot", marker_note)
     if (!is.null(comparison_label)) {
       title_text <- paste0(title_text, ": ", comparison_label)
+    }
+
+    # Adaptive x-axis range for marker-only data (avoid wasted empty space)
+    if (is_marker_only) {
+      raw_logfc <- df$avg_log2FC
+      x_min <- min(0, min(raw_logfc, na.rm = TRUE) - 0.3)
+      x_max <- max(raw_logfc, na.rm = TRUE) + 0.5
+      x_range <- c(x_min, x_max)
+    } else {
+      x_range <- NULL  # use auto
     }
 
     # Main scatter uses WebGL for performance with large datasets
@@ -160,10 +184,18 @@ plot_volcano <- function(de_df, top_n = 20, alpha = 0.05,
       ylab  = paste0("-log10(", y_col, ")")
     )))
 
+    # Apply adaptive x-axis range for marker-only
+    if (!is.null(x_range)) {
+      p <- plotly::layout(p, xaxis = list(range = x_range))
+    }
+
     # Add significance threshold line
     if (y_col == "p_val_adj" || y_col == "p_val") {
       thresh <- -log10(alpha)
-      p <- plotly::add_segments(p, x = -10, xend = 10, y = thresh, yend = thresh,
+      seg_x_start <- if (!is.null(x_range)) x_range[1] - 0.5 else -10
+      seg_x_end   <- if (!is.null(x_range)) x_range[2] + 0.5 else 10
+      p <- plotly::add_segments(p, x = seg_x_start, xend = seg_x_end,
+                                y = thresh, yend = thresh,
                                 line = list(dash = "dash", color = "#636e72",
                                             width = 0.6),
                                 inherit = FALSE, showlegend = FALSE)

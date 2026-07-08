@@ -22,7 +22,7 @@ let currentLayer = null;
 let currentMode  = 'auto'; // auto | selected | custom
 let currentTopN  = 10;
 let currentDir   = 'up';
-let currentMaxGenes = 80;
+let currentMaxGenes = 50;
 let currentBubbleMax = 14;
 let customGenes  = [];
 let selectedGroups = null; // for 'selected' mode
@@ -98,7 +98,7 @@ function buildUI() {
   // Max genes
   html += '<div class="dp-control">';
   html += '<label>Max genes</label>';
-  html += '<input type="number" id="dp-max-genes" value="80" min="10" max="200" style="width:60px">';
+  html += '<input type="number" id="dp-max-genes" value="50" min="10" max="200" style="width:60px">';
   html += '</div>';
 
   // Bubble max size

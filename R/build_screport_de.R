@@ -44,6 +44,10 @@
 #' @param volcano_label_top_n Max gene labels on Volcano Plot. When NULL
 #'   (default), auto-detects: 5 for marker-only data, 8 for bidirectional.
 #'   Set explicitly to override. Full gene info available in hover.
+#' @param volcano_show_labels Logical or NULL. Whether to show gene annotation
+#'   labels on the Volcano Plot. When NULL (default), labels are disabled for
+#'   marker-only/one-sided data and enabled conservatively for bidirectional
+#'   data. Set TRUE/FALSE to override.
 #' @param dotplot_identity_layers Character vector of meta.data columns to use
 #'   as x-axis grouping variables for the interactive DotPlot. When NULL, defaults
 #'   are auto-detected (see \code{.collect_dotplot_identity_layers}).
@@ -113,11 +117,12 @@ build_screport_de <- function(
     only_pos        = FALSE,
     top_n           = 20,
     volcano_label_top_n         = NULL,
+    volcano_show_labels         = NULL,
     dotplot_identity_layers     = NULL,
     dotplot_marker_pool_top_n   = 50,
     dotplot_pool_max_genes      = 500,
     dotplot_top_n               = 10,
-    dotplot_max_display_genes   = 80,
+    dotplot_max_display_genes   = 50,
     dotplot_direction           = "up",
     dotplot_extra_genes         = NULL,
     dotplot_size_min            = 3,
@@ -187,7 +192,8 @@ build_screport_de <- function(
   volcano_widget <- tryCatch({
     plot_volcano(de_df_norm, top_n = top_n, alpha = 0.05,
                  comparison_label = comparison_label,
-                 label_top_n = volcano_label_top_n)
+                 label_top_n = volcano_label_top_n,
+                 show_labels = volcano_show_labels)
   }, error = function(e) {
     all_warnings <<- c(all_warnings, paste("Volcano plot:", e$message))
     NULL
@@ -217,11 +223,16 @@ build_screport_de <- function(
     NULL
   })
 
-  # Violin plot
-  message("  - Violin plot...")
+  # Violin plot — interactive panel with gene selector
+  message("  - Violin plot (interactive)...")
   violin_widget <- tryCatch({
-    plot_violin(seurat_obj, de_df_norm, group_col = group_col,
-                assay = assay, slot = slot)
+    .build_interactive_violin_panel(
+      seurat_obj = seurat_obj,
+      de_df      = de_df_norm,
+      group_col  = group_col,
+      assay      = assay,
+      slot       = slot
+    )
   }, error = function(e) {
     all_warnings <<- c(all_warnings, paste("Violin plot:", e$message))
     NULL
