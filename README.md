@@ -4,7 +4,7 @@
   <strong>Interactive differential expression reports for single-cell analysis.</strong>
 </p>
 
-<p align="center"><img src="https://img.shields.io/badge/Version-v0.1.0-blue" alt="Version"> <img src="https://img.shields.io/badge/Status-Initial%20release-success" alt="Status"> <img src="https://img.shields.io/badge/Layer-scReport%20Module-lightgrey" alt="Layer"> <img src="https://img.shields.io/badge/Focus-Differential%20Expression-purple" alt="Focus"> <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License"></p>
+<p align="center"><img src="https://img.shields.io/badge/Version-v0.1.0-blue" alt="Version"> <img src="https://img.shields.io/badge/Status-Pre--release-success" alt="Status"> <img src="https://img.shields.io/badge/Layer-scReport%20Module-lightgrey" alt="Layer"> <img src="https://img.shields.io/badge/Focus-Differential%20Expression-purple" alt="Focus"> <a href="https://doi.org/10.5281/zenodo.21278267"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.21278267.svg" alt="DOI"></a> <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License"></p>
 
 scReportDE accepts either:
 
