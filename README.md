@@ -1,10 +1,10 @@
 # scReportDE
 
-**Single-cell differential expression HTML report generator** for the scReport
-ecosystem.
+<p align="center">
+  <strong>Interactive differential expression reports for single-cell analysis.</strong>
+</p>
 
-Current status: **v0.2.0 MVP candidate**. The package metadata still declares
-`Version: 0.1.0` until a formal release bump is made.
+<p align="center"><img src="https://img.shields.io/badge/Version-v0.1.0-blue" alt="Version"> <img src="https://img.shields.io/badge/Status-Initial%20release-success" alt="Status"> <img src="https://img.shields.io/badge/Layer-scReport%20Module-lightgrey" alt="Layer"> <img src="https://img.shields.io/badge/Focus-Differential%20Expression-purple" alt="Focus"> <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License"></p>
 
 scReportDE accepts either:
 
@@ -211,8 +211,8 @@ handling, normalization edge cases, and generated HTML contract checks.
 
 ## Version History
 
-- **v0.2.0 MVP candidate**: WebGL volcano rendering, marker-only volcano
-  behavior, interactive DotPlot controls, interactive Violin Plot, DT hidden-tab
-  rendering fix, and HTML contract checks.
-- **v0.1.0**: Initial report generator with pairwise/all-marker DE support,
-  volcano plot, DE table, DotPlot, Violin Plot, and Method Info.
+- **v0.1.0**: Initial release with pairwise/all-marker DE support,
+  precomputed `de_df` input, WebGL volcano rendering, marker-only volcano
+  behavior, robust DT result table rendering, interactive DotPlot controls,
+  interactive Violin Plot, Method Info, hidden-tab widget rendering fixes, and
+  HTML contract checks.
